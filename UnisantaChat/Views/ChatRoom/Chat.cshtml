@@ -1,0 +1,187 @@
+﻿
+@{
+    ViewBag.Title = "Chat";
+}
+
+@section style {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/emojionearea/3.4.2/emojionearea.min.css" crossorigin="anonymous" />
+    <link href="~/Content/chat.css" rel="stylesheet" />
+
+
+    <style>
+        .emojionearea.emojionearea-inline {
+                width: 97%;
+                margin-top: 10px;
+        
+        }
+    </style>
+
+}
+
+
+<nav class="navbar navbar-light bg-light">
+    <a class="navbar-brand" href="#" style="display:block;">
+
+        <img src="https://ui-avatars.com/api/?name=@(ViewBag.Nome)" width="30" height="30" class="d-inline-block align-top" alt="">
+
+
+        @(ViewBag.Nome)
+    </a>
+</nav>
+<div class="messaging">
+    <div class="inbox_msg">
+        <div class="inbox_people">
+            <div class="headind_srch">
+                <div class="recent_heading">
+                    <h4>Usuários online</h4>
+                </div>
+                <select id="users">
+                    <option value="All">Todos</option>
+                </select>
+
+            </div>
+
+            <div class="inbox_chat scroll" id="onlineusers"></div>
+        </div>
+        <div class="mesgs">
+            <div class="msg_history" id="chatlog">
+            </div>
+            <div class="type_msg">
+                <div class="input_msg_write d-flex">
+                    <input type="text" class="write_msg" id="message" placeholder="Escreva sua mensagem" />
+
+                   
+                    <button class="msg_send_btn" id="btnsend" type="button"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+@section scripts {
+   
+    <script src="~/Scripts/jquery.signalR-2.2.2.min.js"></script>
+    
+    <script src="~/signalr/hubs"></script>
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/emojionearea/3.4.2/emojionearea.min.js" crossorigin="anonymous"></script>
+    <script>
+        $("#message").emojioneArea({
+            pickerPosition: "bottom",
+            pickerPosition: "top",
+            tonesStyle: "radio",
+            search: false,
+           
+        });
+    </script>
+    <script type="text/javascript">
+
+        $(function () {
+            startChatHub();
+        });
+
+        function startChatHub() {
+
+            var chat = $.connection.chatHub;
+
+
+            var currUser = '@(ViewBag.Nome)';
+           
+            chat.client.online = function (name) {
+                 let avatarUrl = "https://ui-avatars.com/api/?name=" + name;
+                // atualizar lista de usuario
+                if (name != $('#nickname').val()) {
+                    $("#onlineusers").append(`<div class="chat_list"><div class="chat_people"><div class="chat_img"> <img src=${avatarUrl} alt="sunil"> </div>
+                            <div class="chat_ib">
+                                <h5>${name}</h5>
+                            </div>
+                        </div>
+                    </div>`);
+                    $("#users").append('<option value="' + name + '">' + name + '</option>');
+                }
+            };
+
+            chat.client.enters = function (name) {
+                 let avatarUrl = "https://ui-avatars.com/api/?name=" + name;
+                $('#chatlog').append('<div ><i>' + name + ' entrou na conversa</i></div>');
+                $('#onlineusers').append(`<div class="chat_list"><div class="chat_people"><div class="chat_img"> <img src=${avatarUrl} alt="sunil"> </div>
+                        <div class="chat_ib">
+                            <h5>${name}</h5>
+
+                        </div>
+                    </div>
+                </div>`);
+               $("#users").append('<option value="' + name + '">' + name + '</option>');
+            };
+            // função para pegar as mensagens
+            chat.client.adicionarNovaMensagem = function (name, message,privado) {
+                let avatarUrl = "https://ui-avatars.com/api/?name=" + name;
+                if (name != currUser) {
+                    $("#chatlog").append(`<div class="incoming_msg">
+                    <div class="incoming_msg_img"> <img src="${avatarUrl}" alt="sunil"> </div>
+                    <div class="received_msg">
+                        <div class="received_withd_msg">
+                            <p id="messageChat" style=${(privado == 1)? 'background-color:#009000;color:black' : '' }>
+                                ${message}
+                            </p>
+
+                        </div>
+                    </div>
+                </div>`);
+                    
+
+                } else {
+                    $('#chatlog').append(`<div class="outgoing_msg">
+                    <div class="sent_msg">
+                        <p>
+                            ${message}
+                        </p>
+
+                    </div>
+                </div>`);
+
+                }
+
+            };
+
+            chat.client.disconnected = function (name) {
+                //Quando usuario sai da pagina
+                $('#chatlog').append('<div ><i>' + name + ' saiu da conversa</i></div>');
+                $('#onlineusers div').remove(":contains('" + name + "')");
+                 $("#users option").remove(":contains('" + name + "')");
+
+            }
+
+            // Inicia a conexão
+                $.connection.hub.start().done(function () {
+                   
+                    chat.server.notify(currUser, $.connection.hub.id);
+
+                    $('#btnsend').click(function () {
+                        if ($("#users").val() == "All") {  
+                            
+                            chat.server.send(currUser, $('#message').val(),0);  
+                        }  
+                        else {  
+                            chat.server.sendToSpecific(currUser, $('#message').val(), $("#users").val(),1);  
+                        }  
+                       
+                        
+                        $('.emojionearea-inline').val('').focus();
+                    });
+
+                });
+        }
+
+    </script>
+
+    
+    
+
+}
+
+
